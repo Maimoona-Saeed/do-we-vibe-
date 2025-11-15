@@ -28,21 +28,43 @@ const FeedbackEntryForm: React.FC<FeedbackEntryFormProps> = ({ request, onBack }
   const [growth, setGrowth] = useState('');
   const [vibeRating, setVibeRating] = useState(0);
   const [vibeComment, setVibeComment] = useState('');
-  const [toneSuggestion, setToneSuggestion] = useState('');
-  const [isCheckingTone, setIsCheckingTone] = useState(false);
   
-  // Debounce logic for tone checking
+  const [strengthsToneSuggestion, setStrengthsToneSuggestion] = useState('');
+  const [isCheckingStrengthsTone, setIsCheckingStrengthsTone] = useState(false);
+  const [growthToneSuggestion, setGrowthToneSuggestion] = useState('');
+  const [isCheckingGrowthTone, setIsCheckingGrowthTone] = useState(false);
+  
+  // Debounce logic for strengths tone checking
   useEffect(() => {
-    setToneSuggestion(''); // Clear previous suggestion when user types
+    setStrengthsToneSuggestion(''); // Clear previous suggestion when user types
+    if (strengths.trim().length < 15) { // Minimum length to trigger check
+      return;
+    }
+
+    const handler = setTimeout(async () => {
+      setIsCheckingStrengthsTone(true);
+      const suggestion = await geminiService.rephraseTone(strengths);
+      setStrengthsToneSuggestion(suggestion);
+      setIsCheckingStrengthsTone(false);
+    }, 1500); // 1.5 second debounce
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [strengths]);
+
+  // Debounce logic for growth tone checking
+  useEffect(() => {
+    setGrowthToneSuggestion(''); // Clear previous suggestion when user types
     if (growth.trim().length < 15) { // Minimum length to trigger check
       return;
     }
 
     const handler = setTimeout(async () => {
-      setIsCheckingTone(true);
+      setIsCheckingGrowthTone(true);
       const suggestion = await geminiService.rephraseTone(growth);
-      setToneSuggestion(suggestion);
-      setIsCheckingTone(false);
+      setGrowthToneSuggestion(suggestion);
+      setIsCheckingGrowthTone(false);
     }, 1500); // 1.5 second debounce
 
     return () => {
@@ -70,33 +92,60 @@ const FeedbackEntryForm: React.FC<FeedbackEntryFormProps> = ({ request, onBack }
           <label htmlFor="strengths" className="text-xl font-bold">Strengths</label>
           <p className="text-sm text-gray-500 dark:text-gray-400 my-2">Use the SBI model (Situation-Behavior-Impact) for specific and helpful feedback. E.g., "In the Q3 planning meeting (Situation), you clearly articulated the project goals (Behavior), which helped the team align quickly (Impact)."</p>
           <textarea id="strengths" value={strengths} onChange={e => setStrengths(e.target.value)} rows={5} className="w-full p-2 border rounded-lg bg-secondary dark:bg-dark-secondary dark:border-gray-600 mt-1" />
-        </Card>
-
-        <Card>
-          <label htmlFor="growth" className="text-xl font-bold">Growth Opportunities</label>
-           <p className="text-sm text-gray-500 dark:text-gray-400 my-2">Frame this constructively. What could they start, stop, or continue doing to be even more effective?</p>
-          <textarea id="growth" value={growth} onChange={e => setGrowth(e.target.value)} rows={5} className="w-full p-2 border rounded-lg bg-secondary dark:bg-dark-secondary dark:border-gray-600 mt-1" />
-          {isCheckingTone && (
+          {isCheckingStrengthsTone && (
             <div className="mt-2 text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
               <WandIcon className="h-4 w-4 animate-spin" />
               <span>Checking tone...</span>
             </div>
           )}
-          {toneSuggestion && !isCheckingTone && (
+          {strengthsToneSuggestion && !isCheckingStrengthsTone && (
             <div className="mt-2 p-3 bg-indigo-50 dark:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-800 rounded-lg">
               <p className="text-sm font-semibold text-indigo-700 dark:text-indigo-300 flex items-center gap-2">
                 <WandIcon className="h-4 w-4" />
                 AI Suggestion
               </p>
-              <p className="mt-1 text-sm text-card-foreground dark:text-dark-card_foreground">"{toneSuggestion}"</p>
+              <p className="mt-1 text-sm text-card-foreground dark:text-dark-card_foreground">"{strengthsToneSuggestion}"</p>
               <Button
                 type="button"
                 size="sm"
                 variant="secondary"
                 className="mt-2"
                 onClick={() => {
-                  setGrowth(toneSuggestion);
-                  setToneSuggestion('');
+                  setStrengths(strengthsToneSuggestion);
+                  setStrengthsToneSuggestion('');
+                }}
+              >
+                Apply Suggestion
+              </Button>
+            </div>
+          )}
+        </Card>
+
+        <Card>
+          <label htmlFor="growth" className="text-xl font-bold">Growth Opportunities</label>
+           <p className="text-sm text-gray-500 dark:text-gray-400 my-2">Frame this constructively. What could they start, stop, or continue doing to be even more effective?</p>
+          <textarea id="growth" value={growth} onChange={e => setGrowth(e.target.value)} rows={5} className="w-full p-2 border rounded-lg bg-secondary dark:bg-dark-secondary dark:border-gray-600 mt-1" />
+          {isCheckingGrowthTone && (
+            <div className="mt-2 text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
+              <WandIcon className="h-4 w-4 animate-spin" />
+              <span>Checking tone...</span>
+            </div>
+          )}
+          {growthToneSuggestion && !isCheckingGrowthTone && (
+            <div className="mt-2 p-3 bg-indigo-50 dark:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-800 rounded-lg">
+              <p className="text-sm font-semibold text-indigo-700 dark:text-indigo-300 flex items-center gap-2">
+                <WandIcon className="h-4 w-4" />
+                AI Suggestion
+              </p>
+              <p className="mt-1 text-sm text-card-foreground dark:text-dark-card_foreground">"{growthToneSuggestion}"</p>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                className="mt-2"
+                onClick={() => {
+                  setGrowth(growthToneSuggestion);
+                  setGrowthToneSuggestion('');
                 }}
               >
                 Apply Suggestion
