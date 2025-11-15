@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quarterly Peer Review</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              primary: {
+                DEFAULT: 'hsl(210 40% 96.1%)',
+                foreground: 'hsl(222.2 47.4% 11.2%)',
+              },
+              secondary: {
+                DEFAULT: 'hsl(210 40% 98%)',
+                foreground: 'hsl(222.2 47.4% 11.2%)'
+              },
+              card: {
+                DEFAULT: 'hsl(0 0% 100%)',
+                foreground: 'hsl(222.2 47.4% 11.2%)'
+              },
+              popover: {
+                DEFAULT: 'hsl(0 0% 100%)',
+                foreground: 'hsl(222.2 47.4% 11.2%)'
+              },
+              dark: {
+                primary: 'hsl(222.2 47.4% 11.2%)',
+                primary_foreground: 'hsl(210 40% 98%)',
+                secondary: 'hsl(217.2 32.6% 17.5%)',
+                secondary_foreground: 'hsl(210 40% 98%)',
+                card: 'hsl(222.2 47.4% 11.2%)',
+                card_foreground: 'hsl(210 40% 98%)',
+                popover: 'hsl(222.2 47.4% 11.2%)',
+                popover_foreground: 'hsl(210 40% 98%)'
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <script src="https://unpkg.com/recharts/umd/Recharts.min.js"></script>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "recharts": "https://aistudiocdn.com/recharts@^3.4.1",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.29.1",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0"
+  }
+}
+</script>
+</head>
+  <body class="bg-primary text-primary-foreground dark:bg-dark-primary dark:text-dark-primary_foreground">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,5 @@
+{
+  "name": "Quarterly Peer Review",
+  "description": "A lightweight, interactive prototype for a simple, inviting, and modern peer review tool. It features AI-powered tone guidance, summarization, peer suggestions, and an AI advisor to foster a positive feedback culture.",
+  "requestFramePermissions": []
+}
