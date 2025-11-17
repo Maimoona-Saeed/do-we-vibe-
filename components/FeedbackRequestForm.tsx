@@ -1,34 +1,36 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import type { User } from '../types';
-import { USERS } from '../constants';
+import { AppContext } from '../App';
 import { geminiService } from '../services/geminiService';
 import Button from './common/Button';
 import Toggle from './common/Toggle';
 import { WandIcon } from './common/icons';
 
 interface FeedbackRequestFormProps {
-  currentUser: User;
   onClose: () => void;
 }
 
-type RequestType = 'Suggest' | 'General' | 'Specific' | 'Nudge';
+type RequestType = 'Suggested' | 'Requested' | 'Nudge';
 
-const FeedbackRequestForm: React.FC<FeedbackRequestFormProps> = ({ currentUser, onClose }) => {
-  const [requestType, setRequestType] = useState<RequestType>('Specific');
+const FeedbackRequestForm: React.FC<FeedbackRequestFormProps> = ({ onClose }) => {
+  const context = useContext(AppContext);
+  const [requestType, setRequestType] = useState<RequestType>('Requested');
   const [selectedPeers, setSelectedPeers] = useState<User[]>([]);
   const [isAnonymous, setIsAnonymous] = useState(false);
-  const [context, setContext] = useState('');
+  const [contextText, setContextText] = useState('');
   const [isLoadingPeers, setIsLoadingPeers] = useState(false);
 
-  const availablePeers = USERS.filter(u => u.id !== currentUser.id);
+  if (!context || !context.currentUser) return null;
+  const { currentUser, users, addFeedbackRequests } = context;
+
+  const availablePeers = users.filter(u => u.id !== currentUser.id);
 
   useEffect(() => {
-    if (requestType === 'Suggest') {
+    if (requestType === 'Suggested') {
       const fetchSuggestedPeers = async () => {
         setIsLoadingPeers(true);
-        const peerNames = await geminiService.suggestPeers(currentUser, USERS);
-        const suggested = USERS.filter(u => peerNames.includes(u.name));
+        const peerNames = await geminiService.suggestPeers(currentUser, users);
+        const suggested = users.filter(u => peerNames.includes(u.name));
         setSelectedPeers(suggested);
         setIsLoadingPeers(false);
       };
@@ -36,8 +38,7 @@ const FeedbackRequestForm: React.FC<FeedbackRequestFormProps> = ({ currentUser, 
     } else {
         setSelectedPeers([]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [requestType, currentUser]);
+  }, [requestType, currentUser, users]);
 
   const handlePeerToggle = (peer: User) => {
     setSelectedPeers(prev =>
@@ -47,9 +48,12 @@ const FeedbackRequestForm: React.FC<FeedbackRequestFormProps> = ({ currentUser, 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log({ requestType, selectedPeers, isAnonymous, context });
-    // Here you would typically call an API to create the feedback request
-    alert('Feedback request submitted! (Logged to console)');
+    if (selectedPeers.length === 0) {
+        alert("Please select at least one peer.");
+        return;
+    }
+    addFeedbackRequests(selectedPeers, contextText, isAnonymous, requestType);
+    alert('Feedback request submitted!');
     onClose();
   };
 
@@ -58,14 +62,14 @@ const FeedbackRequestForm: React.FC<FeedbackRequestFormProps> = ({ currentUser, 
       <div>
         <label className="block font-medium mb-2">Request Type</label>
         <div className="flex flex-wrap gap-2">
-          {(['Suggest', 'General', 'Specific', 'Nudge'] as RequestType[]).map(type => (
+          {(['Suggested', 'Requested', 'Nudge'] as RequestType[]).map(type => (
             <Button
               key={type}
               type="button"
               variant={requestType === type ? 'primary' : 'secondary'}
               onClick={() => setRequestType(type)}
             >
-              {type === 'Suggest' && <WandIcon className="h-4 w-4" />}
+              {type === 'Suggested' && <WandIcon className="h-4 w-4" />}
               {type} Peership
             </Button>
           ))}
@@ -86,7 +90,7 @@ const FeedbackRequestForm: React.FC<FeedbackRequestFormProps> = ({ currentUser, 
                 type="checkbox"
                 checked={selectedPeers.some(p => p.id === peer.id)}
                 onChange={() => handlePeerToggle(peer)}
-                className="h-5 w-5 rounded text-indigo-600 focus:ring-indigo-500"
+                className="h-5 w-5 rounded text-brand-600 focus:ring-brand-500"
               />
             </div>
           ))}
@@ -96,13 +100,13 @@ const FeedbackRequestForm: React.FC<FeedbackRequestFormProps> = ({ currentUser, 
 
       <div>
         <label htmlFor="context" className="block font-medium mb-1">Context (Optional)</label>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">What do you want feedback on? e.g., "My presentation skills in the Q3 review."</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">What do you want feedback on? e.g., "My presentation skills in the Q4 review."</p>
         <textarea
           id="context"
-          value={context}
-          onChange={(e) => setContext(e.target.value)}
+          value={contextText}
+          onChange={(e) => setContextText(e.target.value)}
           rows={3}
-          className="w-full p-2 border rounded-lg bg-secondary dark:bg-dark-secondary dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          className="w-full p-2 border rounded-lg bg-secondary dark:bg-dark-secondary dark:border-gray-600 focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
         />
       </div>
 

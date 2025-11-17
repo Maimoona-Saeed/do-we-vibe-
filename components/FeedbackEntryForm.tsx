@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import type { User, FeedbackRequest } from '../types';
+import React, { useState, useEffect, useContext } from 'react';
+import type { FeedbackRequest, SBI } from '../types';
+import { AppContext } from '../App';
 import Card from './common/Card';
 import Button from './common/Button';
 import { geminiService } from '../services/geminiService';
-import { WandIcon } from './common/icons';
+import { WandIcon, ArrowLeftIcon } from './common/icons';
 
 interface FeedbackEntryFormProps {
   request: FeedbackRequest;
-  currentUser: User;
   onBack: () => void;
 }
 
@@ -23,135 +23,167 @@ const StarRating = ({ rating, setRating }: { rating: number, setRating: (r: numb
   </div>
 );
 
+const ToneFeedbackTextarea: React.FC<{
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+  label: string;
+  description: string;
+}> = ({ id, value, onChange, label, description }) => {
+  const [toneSuggestion, setToneSuggestion] = useState('');
+  const [isCheckingTone, setIsCheckingTone] = useState(false);
+
+  useEffect(() => {
+    setToneSuggestion('');
+    if (value.trim().length < 15) {
+      setIsCheckingTone(false);
+      return;
+    }
+    const handler = setTimeout(async () => {
+      setIsCheckingTone(true);
+      const suggestion = await geminiService.rephraseTone(value);
+      setToneSuggestion(suggestion);
+      setIsCheckingTone(false);
+    }, 1500);
+    return () => clearTimeout(handler);
+  }, [value]);
+
+  return (
+    <div>
+      <label htmlFor={id} className="block text-sm font-semibold">{label}</label>
+      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{description}</p>
+      <textarea
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={3}
+        className="w-full p-2 border rounded-lg bg-secondary dark:bg-dark-secondary dark:border-gray-600"
+      />
+      {isCheckingTone && (
+        <div className="mt-2 text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
+          <WandIcon className="h-4 w-4 animate-spin" />
+          <span>Checking tone...</span>
+        </div>
+      )}
+      {toneSuggestion && !isCheckingTone && (
+        <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/50 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <p className="text-sm font-semibold text-brand-700 dark:text-brand-300 flex items-center gap-2">
+            <WandIcon className="h-4 w-4" />
+            AI Suggestion
+          </p>
+          <p className="mt-1 text-sm text-card-foreground dark:text-dark-card_foreground">"{toneSuggestion}"</p>
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            className="mt-2"
+            onClick={() => {
+              onChange(toneSuggestion);
+              setToneSuggestion('');
+            }}
+          >
+            Apply Suggestion
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const FeedbackEntryForm: React.FC<FeedbackEntryFormProps> = ({ request, onBack }) => {
-  const [strengths, setStrengths] = useState('');
-  const [growth, setGrowth] = useState('');
+  const context = useContext(AppContext);
+  const [strengths, setStrengths] = useState<SBI>({ situation: '', behavior: '', impact: '' });
+  const [growth, setGrowth] = useState<SBI>({ situation: '', behavior: '', impact: '' });
   const [vibeRating, setVibeRating] = useState(0);
   const [vibeComment, setVibeComment] = useState('');
+
+  const handleStrengthsChange = (field: keyof SBI, value: string) => {
+    setStrengths(prev => ({ ...prev, [field]: value }));
+  };
   
-  const [strengthsToneSuggestion, setStrengthsToneSuggestion] = useState('');
-  const [isCheckingStrengthsTone, setIsCheckingStrengthsTone] = useState(false);
-  const [growthToneSuggestion, setGrowthToneSuggestion] = useState('');
-  const [isCheckingGrowthTone, setIsCheckingGrowthTone] = useState(false);
-  
-  // Debounce logic for strengths tone checking
-  useEffect(() => {
-    setStrengthsToneSuggestion(''); // Clear previous suggestion when user types
-    if (strengths.trim().length < 15) { // Minimum length to trigger check
-      return;
-    }
-
-    const handler = setTimeout(async () => {
-      setIsCheckingStrengthsTone(true);
-      const suggestion = await geminiService.rephraseTone(strengths);
-      setStrengthsToneSuggestion(suggestion);
-      setIsCheckingStrengthsTone(false);
-    }, 1500); // 1.5 second debounce
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [strengths]);
-
-  // Debounce logic for growth tone checking
-  useEffect(() => {
-    setGrowthToneSuggestion(''); // Clear previous suggestion when user types
-    if (growth.trim().length < 15) { // Minimum length to trigger check
-      return;
-    }
-
-    const handler = setTimeout(async () => {
-      setIsCheckingGrowthTone(true);
-      const suggestion = await geminiService.rephraseTone(growth);
-      setGrowthToneSuggestion(suggestion);
-      setIsCheckingGrowthTone(false);
-    }, 1500); // 1.5 second debounce
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [growth]);
+  const handleGrowthChange = (field: keyof SBI, value: string) => {
+      setGrowth(prev => ({ ...prev, [field]: value }));
+  };
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Logic to submit feedback
+    if (!context) return;
+    if (!strengths.situation.trim() || !strengths.behavior.trim() || !strengths.impact.trim() ||
+        !growth.situation.trim() || !growth.behavior.trim() || !growth.impact.trim() ||
+        vibeRating === 0) {
+        alert("Please fill out all SBI fields for Strengths and Growth, and provide a vibe rating.");
+        return;
+    }
+    context.submitFeedback(request, {
+        strengths,
+        growthOpportunities: growth,
+        vibeRating,
+        vibeComment,
+    });
     alert('Feedback submitted successfully!');
     onBack();
   };
 
   return (
     <div className="max-w-4xl mx-auto">
-       <Button onClick={onBack} variant="secondary" className="mb-4">
-        &larr; Back to Dashboard
+       <Button onClick={onBack} variant="secondary" className="mb-6">
+        <ArrowLeftIcon className="h-5 w-5 mr-2" />
+        Back
       </Button>
       <form onSubmit={handleSubmit} className="space-y-8">
         <h2 className="text-3xl font-bold">Giving Feedback to {request.requester.name}</h2>
         <p className="text-gray-500 dark:text-gray-400">Request Context: "{request.context}"</p>
         
         <Card>
-          <label htmlFor="strengths" className="text-xl font-bold">Strengths</label>
+          <h3 className="text-xl font-bold">Strengths</h3>
           <p className="text-sm text-gray-500 dark:text-gray-400 my-2">Use the SBI model (Situation-Behavior-Impact) for specific and helpful feedback. E.g., "In the Q3 planning meeting (Situation), you clearly articulated the project goals (Behavior), which helped the team align quickly (Impact)."</p>
-          <textarea id="strengths" value={strengths} onChange={e => setStrengths(e.target.value)} rows={5} className="w-full p-2 border rounded-lg bg-secondary dark:bg-dark-secondary dark:border-gray-600 mt-1" />
-          {isCheckingStrengthsTone && (
-            <div className="mt-2 text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
-              <WandIcon className="h-4 w-4 animate-spin" />
-              <span>Checking tone...</span>
+          <div className="space-y-4 mt-4">
+            <div>
+              <label htmlFor="strengths-situation" className="block text-sm font-semibold">Situation</label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">When/where did this happen?</p>
+              <textarea id="strengths-situation" value={strengths.situation} onChange={e => handleStrengthsChange('situation', e.target.value)} rows={2} className="w-full p-2 border rounded-lg bg-secondary dark:bg-dark-secondary dark:border-gray-600" />
             </div>
-          )}
-          {strengthsToneSuggestion && !isCheckingStrengthsTone && (
-            <div className="mt-2 p-3 bg-indigo-50 dark:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-800 rounded-lg">
-              <p className="text-sm font-semibold text-indigo-700 dark:text-indigo-300 flex items-center gap-2">
-                <WandIcon className="h-4 w-4" />
-                AI Suggestion
-              </p>
-              <p className="mt-1 text-sm text-card-foreground dark:text-dark-card_foreground">"{strengthsToneSuggestion}"</p>
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                className="mt-2"
-                onClick={() => {
-                  setStrengths(strengthsToneSuggestion);
-                  setStrengthsToneSuggestion('');
-                }}
-              >
-                Apply Suggestion
-              </Button>
-            </div>
-          )}
+            <ToneFeedbackTextarea
+              id="strengths-behavior"
+              value={strengths.behavior}
+              onChange={value => handleStrengthsChange('behavior', value)}
+              label="Behavior"
+              description="What was the specific action or behavior you observed?"
+            />
+            <ToneFeedbackTextarea
+              id="strengths-impact"
+              value={strengths.impact}
+              onChange={value => handleStrengthsChange('impact', value)}
+              label="Impact"
+              description="What was the result or impact of this behavior?"
+            />
+          </div>
         </Card>
 
         <Card>
-          <label htmlFor="growth" className="text-xl font-bold">Growth Opportunities</label>
-           <p className="text-sm text-gray-500 dark:text-gray-400 my-2">Frame this constructively. What could they start, stop, or continue doing to be even more effective?</p>
-          <textarea id="growth" value={growth} onChange={e => setGrowth(e.target.value)} rows={5} className="w-full p-2 border rounded-lg bg-secondary dark:bg-dark-secondary dark:border-gray-600 mt-1" />
-          {isCheckingGrowthTone && (
-            <div className="mt-2 text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
-              <WandIcon className="h-4 w-4 animate-spin" />
-              <span>Checking tone...</span>
+          <h3 className="text-xl font-bold">Growth Opportunities</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 my-2">Frame this constructively. What could they start, stop, or continue doing to be even more effective?</p>
+           <div className="space-y-4 mt-4">
+            <div>
+              <label htmlFor="growth-situation" className="block text-sm font-semibold">Situation</label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">When/where could there be an opportunity for growth?</p>
+              <textarea id="growth-situation" value={growth.situation} onChange={e => handleGrowthChange('situation', e.target.value)} rows={2} className="w-full p-2 border rounded-lg bg-secondary dark:bg-dark-secondary dark:border-gray-600" />
             </div>
-          )}
-          {growthToneSuggestion && !isCheckingGrowthTone && (
-            <div className="mt-2 p-3 bg-indigo-50 dark:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-800 rounded-lg">
-              <p className="text-sm font-semibold text-indigo-700 dark:text-indigo-300 flex items-center gap-2">
-                <WandIcon className="h-4 w-4" />
-                AI Suggestion
-              </p>
-              <p className="mt-1 text-sm text-card-foreground dark:text-dark-card_foreground">"{growthToneSuggestion}"</p>
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                className="mt-2"
-                onClick={() => {
-                  setGrowth(growthToneSuggestion);
-                  setGrowthToneSuggestion('');
-                }}
-              >
-                Apply Suggestion
-              </Button>
-            </div>
-          )}
+            <ToneFeedbackTextarea
+              id="growth-behavior"
+              value={growth.behavior}
+              onChange={value => handleGrowthChange('behavior', value)}
+              label="Behavior"
+              description="What different behavior could have been demonstrated?"
+            />
+            <ToneFeedbackTextarea
+              id="growth-impact"
+              value={growth.impact}
+              onChange={value => handleGrowthChange('impact', value)}
+              label="Impact"
+              description="What could the positive impact of this new behavior be?"
+            />
+          </div>
         </Card>
 
         <Card>
@@ -161,7 +193,7 @@ const FeedbackEntryForm: React.FC<FeedbackEntryFormProps> = ({ request, onBack }
           <textarea value={vibeComment} onChange={e => setVibeComment(e.target.value)} rows={2} className="w-full p-2 border rounded-lg bg-secondary dark:bg-dark-secondary dark:border-gray-600 mt-4" placeholder="Optional comment..."/>
         </Card>
         
-        {request.isAnonymous && <p className="text-sm text-yellow-600 bg-yellow-100 p-3 rounded-lg text-center">Your feedback will be submitted anonymously.</p>}
+        {request.isAnonymous && <p className="text-sm text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-300 p-3 rounded-lg text-center">Your feedback will be submitted anonymously.</p>}
 
         <div className="flex justify-end">
           <Button type="submit" size="lg">Submit Feedback</Button>

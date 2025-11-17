@@ -1,7 +1,24 @@
-
 export enum Role {
   Employee = 'Employee',
   Admin = 'Admin',
+}
+
+export interface UserProfile {
+  bio: string;
+  linkedin: string;
+  github: string;
+  website: string;
+}
+
+export interface UserPreferences {
+  receive: string[];
+  give: string[];
+}
+
+export interface NotificationSettings {
+    newRequestEmail: boolean;
+    feedbackSubmittedEmail: boolean;
+    weeklySummaryEmail: boolean;
 }
 
 export interface User {
@@ -11,6 +28,10 @@ export interface User {
   role: Role;
   department: string;
   avatar: string;
+  managerId: number | null;
+  profile: UserProfile;
+  preferences: UserPreferences;
+  notificationSettings: NotificationSettings;
 }
 
 export enum FeedbackStatus {
@@ -28,14 +49,21 @@ export interface FeedbackRequest {
   context: string;
   createdAt: string;
   quarter: string;
+  type: 'Requested' | 'Suggested' | 'Mandated';
+}
+
+export interface SBI {
+  situation: string;
+  behavior: string;
+  impact: string;
 }
 
 export interface Feedback {
   id: number;
   requestId: number;
   reviewer: User | null; // null if anonymous
-  strengths: string;
-  growthOpportunities: string;
+  strengths: SBI;
+  growthOpportunities: SBI;
   vibeRating: number;
   vibeComment: string;
   submittedAt: string;
@@ -53,7 +81,9 @@ export interface Summary {
 
 export type View = 
   | { type: 'login' }
+  | { type: 'signup' }
   | { type: 'dashboard' }
   | { type: 'request-feedback' }
   | { type: 'give-feedback'; request: FeedbackRequest }
-  | { type: 'view-summary'; userId: number; quarter: string };
+  | { type: 'view-summary'; userId: number; quarter: string }
+  | { type: 'settings' };
